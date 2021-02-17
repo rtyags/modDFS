@@ -1,0 +1,152 @@
+modDFS: Find whether a KEGG module is complete in a proteome
+
+Author: Rahul Tyagi
+Date: 7/1/2014
+
+===========================
+
+PROGRAM DESCRIPTION
+-------------------
+
+Given module definitions and reaction information based on a KEGG database, modDFS does a depth first search to find whether a set of KOs are sufficient for completion of a module.
+For cases where only 1 absent KO would've been enough for module completion, that module is reported to be complete(only lenient).
+For cyclic modules, completion is defined as having all the module reaction steps present. Again, lenient completion cases are reported.
+Also, all absent reactions are reported for an cyclic module not strictly complete, so that a manual inspection of completion can be done for modules that are partially cyclic.
+
+The user needs to provide following information:
+1. Available KOs in the dataset, module's definition, and reaction data in input files (see below).
+2. whether the module is (even partially) cyclic (default is assumed to be acyclic, and the results for such modules need to be manually checked).
+3. Any "given compounds" in the module. i.e. compounds that are available to the module from external sources. these are generally the substrates of the first reaction step of an acyclic module (this is assumed to be the default), but do not necessarily exclude other compounds. For instance, there might be other reactions whose substrates aren't produced by any reaction in the module. these subsrates need to be pointed out by the user.
+
+There are some modules that have "forks" in their definition (e.g. module M00074). i.e. there is more than one product of the module, each of them produced by a different branch of the module. In these cases, it is recommended that the user manually generates module definition files that divide this module into smaller modules with one branch each.
+
+
+===========================
+
+SETUP
+-----
+
+1. modify line 1 of modDFS.pl if your perl interpreter is different from /usr/bin/perl
+2. make sure that your perl has modules Getopt and Storable installed
+
+
+===========================
+
+INPUT FILES FORMATS
+-------------------
+
+The program requires KO, reaction and module information in files whose path is to be provided on the command line. The formats should be consistent with the example files given in the example directory
+
+1. KO file: example/example.ko
+contains KOs present in your proteome/dataset with one KO per line
+
+2. reaction data file: example/rn_data
+contains reversibility and KO mapping of reactions with one reaction information per line.
+reversibility is indicated by a 0 for irreversible,1 for reversible, and NA for not available.
+KOs are in the third column, separated by colon
+
+3. module definition file: example/module or example/M00001
+optional file in the KEGG module definition format. you can also use -keggdb to point the program to your local kegg database installation (with relevant files and directories unzipped). the program will look for the module file $keggdb/module/module
+it is recommended that if you are only working with a few modules repeatedly, you should extract their module definition from the KEGG module file into a separate, smaller module definition file containing only relevant modules. This will help the program run faster
+
+4. "given compounds" file: example/givfile
+
+optional file which has a 'c' in second column if the module is (even partially) cyclic and the "given compounds" of the module in the third column, separated by colon (:). the columns are separated by whitespace
+this information can also directly be provided on command line using -cyc and -given
+
+
+===========================
+
+RUN modDFS
+----------
+
+do `modDFS.pl -help` for useful information about all available options.
+
+the following are all valid command lines (one out of -keggdb and -modfile are required. one out of -givfile and -given is required)
+
+% modDFS.pl -module module_name -kofile ko_file_path -rnfile rxn_file_path -keggdb kegg_db_path -givfile given_file_path
+
+% modDFS.pl -module module_name -kofile ko_file_path -rnfile rxn_file_path -keggdb kegg_db_path -given given_compound
+
+% modDFS.pl -module module_name -kofile ko_file_path -rnfile rxn_file_path -keggdb kegg_db_path -given given_compound -cyc
+
+% modDFS.pl -module module_name -kofile ko_file_path -rnfile rxn_file_path -keggdb kegg_db_path -given given_compound:given_compound2:given_compound3
+
+% modDFS.pl -module module_name -kofile ko_file_path -rnfile rxn_file_path -modfile module_definition_file_path -givfile given_file_path
+
+the option order can vary. abbreviating option names to unambiguity is allowed
+
+===========================
+
+OUTPUT FORMAT
+-------------
+
+the output is in one of the following formats (the IDs here are only for illustration and may not be consistent with their KEGG definitions):
+
+1. when the acyclic module is determined to be complete under strict completion definition (see Tyagi et al.) 
+
+"
+OUTPUT:
+
+M00001	complete(strict)
+"
+
+2. when the acyclic module is determined to be incomplete under strict completion definition, but complete under lenient completion definition.
+
+"
+OUTPUT:
+
+M00012	complete(only lenient)
+
+needed for completion:	R00472;K01638	R00473;K01639,K01632
+"
+
+i.e. absent reactions that would complete the module if they were available individually (i.e. only one at a time), separated by tabs. corresponding missing KOs that'd make these reactions complete are listed (separated by commas) following the reaction name and a semi colon. 
+
+3. when a cyclic module is determined to be complete under strict completion definition
+
+"
+
+OUTPUT:
+
+M00012(cyclic)	complete(strict)
+"
+
+4. when the cyclic module is determined to be incomplete under strict completion definition, but complete under lenient completion definition.
+
+"
+OUTPUT:
+
+M00012(cyclic)	complete(only lenient)
+
+incomplete steps:	R00472
+needed for completion:	R00472;K01638
+"
+
+5. when the acyclic module is determined to be incomplete under either definition.
+
+"
+OUTPUT:
+
+M00012	incomplete
+"
+
+6. when the cyclic module is determined to be incomplete under either definition.
+
+"
+OUTPUT:
+
+M00012(cyclic)	incomplete
+
+incomplete steps:	R00472;R00473;R00123
+"
+
+===========================
+
+REFERENCE
+---------
+
+Tyagi et. al. unpublished.
+
+===========================
+Copyright (C) 2014. Makedonka Mitreva and Rahul Tyagi. All rights reserved.
